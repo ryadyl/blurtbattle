@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speak Up! - Results</title>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Baloo 2', 'Segoe UI', Arial, sans-serif;
+      background: #2176D2;
+      margin: 0;
+      padding: 20px;
+    }
+    
+    .results-container {
+      background: white;
+      padding: 40px;
+      max-width: 800px;
+      margin: 0 auto;
+      border-radius: 8px;
+      border: 1px solid #e1e8ed;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      text-align: center;
+    }
+    
+    h1 {
+      margin: 0 0 10px 0;
+      color: #2d3748;
+      font-weight: 600;
+      font-size: 28px;
+    }
+    
+    .subtitle {
+      margin: 0 0 30px 0;
+      color: #718096;
+      font-size: 16px;
+    }
+    
+    .team-rankings {
+      margin: 20px 0;
+    }
+    
+    .team-card {
+      background: white;
+      padding: 24px;
+      border: 1px solid #e1e8ed;
+      border-radius: 8px;
+      margin: 16px 0;
+      text-align: left;
+      position: relative;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .team-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    
+    .team-card.first {
+      background: #fffbf0;
+      border-color: #fbd38d;
+    }
+    
+    .team-card.second {
+      background: #f7fafc;
+      border-color: #cbd5e0;
+    }
+    
+    .team-card.third {
+      background: #fffaf5;
+      border-color: #ed8936;
+    }
+    
+    .rank-badge {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #edf2f7;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 14px;
+      color: #4a5568;
+    }
+    
+    .team-number {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 8px 0;
+      color: #2d3748;
+    }
+    
+    .team-score {
+      font-size: 36px;
+      font-weight: 700;
+      margin: 8px 0;
+      color: #2176D2;
+    }
+    
+    .feedback-box {
+      margin: 20px 0;
+      padding: 16px;
+      background: #f7fafc;
+      border-left: 3px solid #2176D2;
+      border-radius: 6px;
+    }
+    
+    .feedback-box strong {
+      display: block;
+      margin-bottom: 8px;
+      color: #2d3748;
+      font-size: 14px;
+    }
+    
+    .feedback-box p {
+      margin: 0;
+      color: #4a5568;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+    
+    .team-details {
+      margin-top: 20px;
+      border-top: 1px solid #e1e8ed;
+      padding-top: 16px;
+    }
+    
+    .team-details summary {
+      cursor: pointer;
+      font-weight: 500;
+      margin-bottom: 12px;
+      color: #4a5568;
+      font-size: 14px;
+    }
+    
+    .team-details .detail-item {
+      margin: 12px 0;
+      font-size: 14px;
+    }
+    
+    .prompt-text {
+      font-style: italic;
+      color: #718096;
+      margin-top: 4px;
+    }
+    
+    .transcript-text {
+      max-height: 150px;
+      overflow-y: auto;
+      background: #f7fafc;
+      padding: 12px;
+      border-radius: 4px;
+      border: 1px solid #e1e8ed;
+      margin-top: 8px;
+      color: #2d3748;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+    
+    .controls {
+      margin-top: 30px;
+    }
+    
+    button {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      margin: 8px;
+      transition: all 0.2s;
+    }
+    
+    .play-again-btn {
+      background: #2176D2;
+      color: white;
+    }
+    
+    .play-again-btn:hover {
+      background: #2176D2;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(3, 168, 61, 0.2);
+    }
+    
+    .home-btn {
+      background: #718096;
+      color: white;
+    }
+    
+    .home-btn:hover {
+      background: #4a5568;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(113, 128, 150, 0.2);
+    }
+    
+    .no-results {
+      padding: 40px;
+      color: #718096;
+    }
+  </style>
+</head>
+<body>
+  <div class="results-container">
+    <h1>Final Results</h1>
+    <p class="subtitle">Here are the rankings for all teams!</p>
+    
+    <div id="rankings-container"></div>
+    
+    <div class="controls">
+      <button class="play-again-btn" id="playAgainBtn">Play Again</button>
+      <button class="home-btn" id="homeBtn">Back to Home</button>
+    </div>
+  </div>
+
+  <script>
+    function processSharkTank() {
+      const scoresData = localStorage.getItem('teamScoresSharktank');
+      if (!scoresData) {
+        document.getElementById('rankings-container').innerHTML = 
+          '<div class="no-results">No results found. Please play a game first.</div>';
+        return;
+      }
+      let teamScores = JSON.parse(scoresData);
+
+      teamScores.sort((a, b) => b.score - a.score);
+      
+      // display rankings
+      const container = document.getElementById('rankings-container');
+
+      var rankingsHTML;
+      
+      rankingsHTML = teamScores.map((team, index) => {
+        let cardClass = '';
+        let rankText = `#${index + 1}`;
+        
+        if (index === 0) {
+          cardClass = 'first';
+        } else if (index === 1) {
+          cardClass = 'second';
+        } else if (index === 2) {
+          cardClass = 'third';
+        }
+        
+        return `
+          <div class="team-card ${cardClass}">
+            <div class="rank-badge">${rankText}</div>
+            <div class="team-number">Team ${team.teamNumber}</div>
+            <div class="team-valuation">${team.score} / 100</div>
+            <div class="team-investment"><strong>Investment Amount:</strong> $${team.investedAmount}</div>
+            <div class="team-equity"><strong>Equity Taken:</strong> ${team.equityTaken}%</div>
+            <div class="feedback-box">
+              <strong>AI Feedback:</strong>
+              <p>${team.feedback || 'No feedback available.'}</p>
+            </div>
+            <div class="team-details">
+              <details>
+                <summary>View Full Details</summary>
+                <div class="detail-item">
+                  <strong>Prompt:</strong>
+                  <div class="prompt-text">${team.prompt}</div>
+                </div>
+                <div class="detail-item">
+                  <strong>Transcript:</strong>
+                  <div class="transcript-text">${team.transcript}</div>
+                </div>
+              </details>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = '<div class="team-rankings">' + rankingsHTML + '</div>';
+
+
+
+    }
+    window.addEventListener('load', function() {
+      // load scores from localStorage
+      const scoresData = localStorage.getItem('teamScores');
+      var sharkTankScoresData;
+      if (localStorage.getItem('sharktankMode') === 'true') {
+        processSharkTank();
+        return;
+      }
+      
+      if (!scoresData) {
+        document.getElementById('rankings-container').innerHTML = 
+          '<div class="no-results">No results found. Please play a game first.</div>';
+        return;
+      }
+      
+      let teamScores = JSON.parse(scoresData);
+      
+      // sort teams by score (descending)
+      teamScores.sort((a, b) => b.score - a.score);
+      
+      // display rankings
+      const container = document.getElementById('rankings-container');
+
+      var rankingsHTML;
+      
+      rankingsHTML = teamScores.map((team, index) => {
+        let cardClass = '';
+        let rankText = `#${index + 1}`;
+        
+        if (index === 0) {
+          cardClass = 'first';
+        } else if (index === 1) {
+          cardClass = 'second';
+        } else if (index === 2) {
+          cardClass = 'third';
+        }
+        
+        return `
+          <div class="team-card ${cardClass}">
+            <div class="rank-badge">${rankText}</div>
+            <div class="team-number">Team ${team.teamNumber}</div>
+            <div class="team-score">${team.score} / 100</div>
+            <div class="feedback-box">
+              <strong>AI Feedback:</strong>
+              <p>${team.feedback || 'No feedback available.'}</p>
+            </div>
+            <div class="team-details">
+              <details>
+                <summary>View Full Details</summary>
+                <div class="detail-item">
+                  <strong>Prompt:</strong>
+                  <div class="prompt-text">${team.prompt}</div>
+                </div>
+                <div class="detail-item">
+                  <strong>Transcript:</strong>
+                  <div class="transcript-text">${team.transcript}</div>
+                </div>
+              </details>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = '<div class="team-rankings">' + rankingsHTML + '</div>';
+    });
+    
+    // event listeners
+    document.getElementById('playAgainBtn').addEventListener('click', function() {
+      window.location.href = 'game.html';
+    });
+    
+    document.getElementById('homeBtn').addEventListener('click', function() {
+      window.location.href = 'home.html';
+    });
+  </script>
+</body>
+</html>
+

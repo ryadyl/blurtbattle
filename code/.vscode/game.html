@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speak Up! - Game</title>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Baloo 2', 'Segoe UI', Arial, sans-serif;
+      background: #2176D2 url('../../Blurt%20Background.png') no-repeat center center fixed;
+      background-size: cover;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .game-container {
+      background: white;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      margin: 0 auto;
+      border-radius: 8px;
+      border: 1px solid #e1e8ed;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .team-display {
+      font-size: 32px;
+      font-weight: 600;
+      color: #2176D2;
+      margin: 0 0 30px 0;
+    }
+    
+    .timer {
+      font-size: 56px;
+      font-weight: 700;
+      color: #e53e3e;
+      margin: 30px 0;
+      padding: 30px;
+      border: 2px solid #fed7d7;
+      border-radius: 8px;
+      background: #fef5e7;
+      display: inline-block;
+      min-width: 200px;
+    }
+    
+    /* simple progress bar under the timer */
+    .progress {
+      width: 100%;
+      max-width: 600px;
+      height: 10px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 10px auto 0 auto;
+      border: 1px solid #cbd5e0;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #2176D2;
+      transition: width 0.25s linear;
+    }
+    
+    .prompt {
+      font-size: 18px;
+      line-height: 1.6;
+      margin: 30px 0;
+      padding: 20px;
+      background: #f7fafc;
+      border-left: 4px solid #2176D2;
+      border-radius: 6px;
+      color: #2d3748;
+      text-align: left;
+    }
+    
+    .controls {
+      margin-top: 30px;
+    }
+    
+    button {
+      padding: 14px 28px;
+      margin: 8px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .next-team-btn {
+      background: #2176D2;
+      color: white;
+    }
+    
+    .next-team-btn:hover {
+      background: #1A5BA0;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(33, 118, 210, 0.2);
+    }
+    
+    .next-team-btn:disabled {
+      background: #cbd5e0;
+      color: #a0aec0;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .back-btn {
+      background: #718096;
+      color: white;
+    }
+    
+    .back-btn:hover {
+      background: #4a5568;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(113, 128, 150, 0.2);
+    }
+    
+    .recording-indicator {
+      display: none;
+      color: #e53e3e;
+      font-weight: 500;
+      margin: 15px 0;
+      font-size: 14px;
+    }
+    
+    .recording-indicator.active {
+      display: block;
+    }
+    
+    .loading-indicator {
+      display: none;
+      color: #2176D2;
+      font-weight: 500;
+      margin: 15px 0;
+      font-size: 14px;
+    }
+    
+    .loading-indicator.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="team-display" id="currentTeam">Team 1</div>
+    
+    <div class="timer" id="timer">0:00</div>
+    <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+    
+    <div class="recording-indicator" id="recordingIndicator">Recording...</div>
+    
+    <div class="loading-indicator" id="loadingIndicator">Generating prompts...</div>
+    
+    <div class="prompt" id="prompt">
+    </div>
+    
+    <div class="controls">
+      <button class="next-team-btn" id="nextTeamBtn" disabled>Next</button>
+      <button class="back-btn" id="backBtn">Back to Setup</button>
+    </div>
+
+    <audio id="freestyleaudio" src="freestyle.mp3" preload="auto"></audio>
+
+  </div>
+
+  <script>
+    // game state
+    let gameData = null;
+    let currentTeamIndex = 0;
+    let timeRemaining = 5;
+    let currentTeamTotalTime = 5; // track total time for progress bar
+    let timerInterval = null;
+    let isRecording = false;
+    let teamPrompts = []; // store generated prompts for each team
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let teamScores = []; // store scores for each team
+    let teamScoresSharktank = []; // store scores for shark tank mode
+    let isProcessingAudio = false; // flag to track if audio is being processed
+
+    async function startWarning() {
+      timeRemaining=5;
+      currentTeamTotalTime=5;
+      updateProgressBar();
+      document.getElementById('timer').style.display='none';
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      timeRemaining=5;
+      currentTeamTotalTime=5;
+      warningInterval = setInterval(function() {
+        timeRemaining-=0.02;
+        updateProgressBar();
+        
+        if (timeRemaining < 0) {
+          timeRemaining=gameData.timePerTeam;
+          clearInterval(warningInterval);
+          startTimer();
+        }
+      }, 20);
+  }
+
+    // initialize game when page loads
+    window.addEventListener('load', async function() {
+      document.getElementById('timer').style.display='none';
+      // load game data from localStorage
+      const savedData = localStorage.getItem('gameData');
+      if (!savedData) {
+        window.location.href = 'home.html';
+        return;
+      }
+      
+      gameData = JSON.parse(savedData);
+      //timeRemaining = gameData.timePerTeam;
+      currentTeamTotalTime = 5;
+      
+      // generate prompts for all teams
+      await generateAllPrompts();
+      updateDisplay();
+      await startWarning();
+    });
+
+    function updateDisplay() {
+      // update team display
+      document.getElementById('currentTeam').textContent = `Team ${currentTeamIndex + 1}`;
+      
+      // update prompt from generated prompts
+      if (teamPrompts[currentTeamIndex]) {
+        document.getElementById('prompt').textContent = teamPrompts[currentTeamIndex];
+      } else {
+        document.getElementById('prompt').textContent = 'Generating prompt...';
+      }
+      
+      // update timer display
+      updateTimerDisplay();
+    }
+
+    function updateTimerDisplay() {
+      const minutes = Math.floor(timeRemaining / 60);
+      const seconds = timeRemaining % 60;
+      document.getElementById('timer').textContent = 
+        `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      updateProgressBar();
+    }
+
+    function updateProgressBar() {
+      const bar = document.getElementById('progressBar');
+      if (!bar || currentTeamTotalTime <= 0) return;
+      const elapsed = Math.max(0, currentTeamTotalTime - timeRemaining);
+      const percent = Math.max(0, Math.min(100, (elapsed / currentTeamTotalTime) * 100));
+      bar.style.width = `${percent}%`;
+    }
+
+    // chatgpt API integration
+    async function generatePrompt(gameMode, teamNumber) {
+      const apiKey = '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'; // Replace with your actual API key
+      
+      const promptTemplates = {
+        'debate': `One-sentence debate topic; fun and original; do not reuse common themes; clearly say which side to argue for.`,
+        'story': `One-sentence story prompt using exactly 2 random objects; keep it simple and playful.`,
+        'problem': `One-sentence survival/problem scenario; absurd but easy to grasp.`,
+        'tedx': `One-sentence TEDx-style idea to explain or inspire; short and clear.`,
+        'sharktank': `One-sentence Shark Tank prompt; clearly describe quirky product/service; ask team to convince investors; fun and direct.`,
+        'freestyle': `Return three pretty-common words separated by commas; fomrat should be: Create a rap freestyle with these words: word 1, word 2, word 3. The words should have two syllables max.`
+      };
+
+      const systemPrompt = promptTemplates[gameMode];
+
+      try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'gpt-3.5-turbo',
+            messages: [
+              { role: 'system', content: 'You are a creative party game prompt generator. Generate engaging, fun speaking prompts for teams.' },
+              { role: 'user', content: systemPrompt }
+            ],
+            max_tokens: 100,
+            temperature: 1.2
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.choices[0].message.content.trim();
+      } catch (error) {
+        throw error;
+      }
+    }
+
+    async function generateAllPrompts() {
+      //show loading state
+      document.getElementById('loadingIndicator').classList.add('active');
+      document.getElementById('prompt').textContent = 'Generating prompts for all teams...';
+      
+      try {
+        // generate prompts for all teams
+        const promptPromises = [];
+        for (let i = 0; i < gameData.teams; i++) {
+          promptPromises.push(generatePrompt(gameData.gameMode, i + 1));
+        }
+        
+        teamPrompts = await Promise.all(promptPromises);
+        console.log('Generated prompts:', teamPrompts);
+        
+        // hide loading indicator
+        document.getElementById('loadingIndicator').classList.remove('active');
+      } catch (error) {
+        document.getElementById('loadingIndicator').classList.remove('active');
+      }
+    }
+
+    async function startTimer() {
+
+      document.getElementById('timer').style.display='block';
+
+      timeRemaining = gameData.timePerTeam;
+      currentTeamTotalTime = gameData.timePerTeam;
+      updateTimerDisplay();
+
+      // start recording indicator
+      document.getElementById('recordingIndicator').classList.add('active');
+      isRecording = true;
+      
+      // start audio recording
+      await startRecording();
+      
+      // start countdown
+      timerInterval = setInterval(function() {
+        timeRemaining--;
+        updateTimerDisplay();
+        
+        if (timeRemaining <= 0) {
+          stopTimer();
+          document.getElementById('freestyleaudio').pause();
+        }
+      }, 1000);
+
+      //start audio from beginning
+      if (gameData.gameMode === 'freestyle') {
+          document.getElementById('freestyleaudio').currentTime = 0;
+          document.getElementById('freestyleaudio').play();
+      }
+    }
+
+    async function startRecording() {
+      try {
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        // Store the current team info when recording starts
+        const currentTeam = currentTeamIndex;
+        const currentPrompt = teamPrompts[currentTeamIndex];
+        
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+        
+        mediaRecorder.onstop = async () => {
+          // stop all tracks
+          stream.getTracks().forEach(track => track.stop());
+          
+          // process the audio with the stored team info
+          await processAudioAndScore(currentTeam, currentPrompt);
+        };
+        
+        mediaRecorder.start();
+      } catch (error) {
+        // silent fail
+      }
+    }
+
+    async function stopTimer() {
+      clearInterval(timerInterval);
+      document.getElementById('recordingIndicator').classList.remove('active');
+      isRecording = false;
+      
+      // stop recording
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      
+      document.getElementById('nextTeamBtn').disabled = false;
+    }
+
+    async function processAudioAndScore(teamIndex, prompt) {
+      isProcessingAudio = true;
+      try {
+        // show scoring indicator
+        document.getElementById('loadingIndicator').classList.add('active');
+        document.getElementById('loadingIndicator').textContent = 'Scoring team performance...';
+        
+        // convert audio chunks to blob
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        
+        // transcribe audio
+        const transcript = await transcribeAudio(audioBlob);
+        
+        var result;
+
+        // score the transcript (now returns {score, feedback})
+        if (gameData.gameMode === 'sharktank') {
+          result = await scoreTranscriptSharktank(transcript, prompt);
+          teamScoresSharktank.push({
+            teamNumber: teamIndex + 1,
+            score: result.score,
+            feedback: result.feedback,
+            transcript: transcript,
+            prompt: prompt,
+            investedAmount: result.investedAmount,
+            equityTaken: result.equityTaken
+          });
+        } else {
+            result = await scoreTranscript(transcript, prompt, gameData.gameMode);
+            teamScores.push({
+            teamNumber: teamIndex + 1,
+            score: result.score,
+            feedback: result.feedback,
+            transcript: transcript,
+            prompt: prompt
+          });
+        }
+        
+        console.log(`Team ${teamIndex + 1} scored ${result.score}/100`);
+        
+        // hide scoring indicator
+        document.getElementById('loadingIndicator').classList.remove('active');
+        document.getElementById('loadingIndicator').textContent = 'Generating prompts...';
+      } catch (error) {
+        document.getElementById('loadingIndicator').classList.remove('active');
+        teamScores.push({
+          teamNumber: teamIndex + 1,
+          score: 0,
+          feedback: '',
+          transcript: '',
+          prompt: prompt
+        });
+      } finally {
+        isProcessingAudio = false;
+      }
+    }
+
+    async function transcribeAudio(audioBlob) {
+      const apiKey = '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';
+      
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'recording.webm');
+      formData.append('model', 'whisper-1');
+      formData.append('language', 'en');
+      
+      try {
+        const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Transcription failed: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.text;
+      } catch (error) {
+        return '';
+      }
+    }
+
+    async function scoreTranscriptSharktank(transcript, prompt) {
+      //TODO: this needs to return two distinct values: string describing investment decision and string of brief feedback. then another ai needs to determine which investment decision was most advantageous?
+      const apiKey = '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';
+      
+      const scoringCriteria = 'Evaluate clarity of the idea, originality, value proposition, basic feasibility, and overall investor persuasion.';
+      
+      // First, get the score
+      const scoringPrompt = `You are a billionare on Shark Tank evaluating a pitch. Evaluate the following transcript based on:
+
+${scoringCriteria || 'Evaluate overall quality and engagement.'}
+
+Prompt given: "${prompt}"
+Transcript: "${transcript}"
+
+Please state your investment decision and provide brief feedback.
+Here is how you should format your response:
+A B
+C
+where A=the amount invested without dollar signs, commas, or periods (and keep in mind this can be zero)
+B=the percentage of equity taken (just the number, no % sign)
+C=brief feedback (2-3 sentences) explaining your decision.
+and there is a newline between B and C.
+Note: if no transcript was provided, give zero investment and zero equity taken with appropriate feedback.
+NOTE: THIS IS VERY VERY IMPORTANT. THERE SHOULD BE A NEWLINE BETWEEN B AND C BUT NOT BETWEEN A AND B. THERE SHOULD ONLY BE A SPACE BETWEEN A AND B.`;
+
+      try {
+        // Get the score
+        const scoreResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'gpt-3.5-turbo',
+            messages: [
+              { role: 'system', content: 'You are a fair and objective judge for speaking competitions.' },
+              { role: 'user', content: scoringPrompt }
+            ],
+            max_tokens: 120,
+            temperature: 0.5
+          })
+        });
+        
+        if (!scoreResponse.ok) {
+          throw new Error('Scoring failed');
+        }
+        
+        const scoreData = await scoreResponse.json();
+        const scoreText = scoreData.choices[0].message.content.trim();
+        
+        const investedAmount = scoreText.split(' ')[0];
+        const equityTaken = scoreText.split(' ')[1].split('\n')[0];
+        const feedback = scoreText.substring(scoreText.indexOf('\n')).trim();
+        var valuation=0;
+        if (investedAmount!=0) {
+            valuation = (parseFloat(investedAmount) / (parseFloat(equityTaken) / 100));
+        }
+
+        return {"score":valuation,"feedback":feedback,"investedAmount":investedAmount,"equityTaken":equityTaken};
+      } catch (error) {
+        console.error('Error scoring transcript:', error);
+        return {"score":0,"feedback":"Unable to generate detailed feedback at this time.","investedAmount":"0","equityTaken":"0" };
+      }
+    }
+
+    async function scoreTranscript(transcript, prompt, gameMode) {
+      const apiKey = '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';
+      
+      const scoringCriteria = {
+        'debate': 'Evaluate persuasiveness, logical arguments, and convincing presentation.',
+        'story': 'Evaluate creativity, narrative structure, and storytelling quality.',
+        'problem': 'Evaluate problem-solving approach, originality, and practicality.',
+        'tedx': 'Evaluate clarity, engagement, and motivational impact.',
+        'sharktank': 'Evaluate clarity of the idea, originality, value proposition, basic feasibility, and overall investor persuasion.',
+        'freestyle': 'Evaluate creativity, flow, rhyme, and effective use of the given words in the rap performance.'
+      };
+      
+      // First, get the score
+      const scoringPrompt = `You are an expert judge for a speaking competition. Evaluate the following transcript based on:
+1. Content Quality (30 points): Relevance to the prompt and depth of ideas
+2. Creativity & Originality (25 points): Unique perspective and innovative thinking
+3. Argument/Idea/Points (25 points): Clear thesis and coherent supporting points
+4. Clarity of Ideas (20 points): Organization and understandable wording (ignore tone, prosody, volume, pace, and enunciation)
+ KEEP THIS IN MIND. THIS IS VERY VERY IMPORTANT: Judge ONLY the transcript content. Ignore tone/prosody/pace. Do not take issue with swear words; they are acceptable in this relaxed social context.
+ 
+${scoringCriteria[gameMode] || 'Evaluate overall quality and engagement.'}
+
+Prompt given: "${prompt}"
+Transcript: "${transcript}"
+
+Provide ONLY a number from 0-100 as your final score. Do not include any explanation, just the number.`;
+
+      try {
+        // Get the score
+        const scoreResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'gpt-3.5-turbo',
+            messages: [
+              { role: 'system', content: 'You are a fair and objective judge for speaking competitions. You must be honest as well: Dont just be a yes man. However, dont be brutal. If no transcript is provided give a zero.' },
+              { role: 'user', content: scoringPrompt }
+            ],
+            max_tokens: 10,
+            temperature: 0.5
+          })
+        });
+        
+        if (!scoreResponse.ok) {
+          throw new Error(`Scoring failed: ${scoreResponse.status}`);
+        }
+        
+        const scoreData = await scoreResponse.json();
+        const scoreText = scoreData.choices[0].message.content.trim();
+        const scoreMatch = scoreText.match(/\d+/);
+        const score = scoreMatch ? parseInt(scoreMatch[0]) : 50;
+        const finalScore = Math.max(0, Math.min(100, score));
+        
+        // Now get detailed feedback
+        const feedbackPrompt = `As an expert judge, provide brief but specific feedback (2-3 sentences) explaining why this performance received a score of ${finalScore}/100. Judge ONLY the transcript content (relevance, ideas, clarity, creativity). Ignore tone, prosody, pace, and enunciation. Focus on the most important strengths and one area for improvement. Note that if no transcript is provided, that explains why the score may be zero.
+KEEP THIS IN MIND. THIS IS VERY VERY IMPORTANT: Do not take issue with swear words. These words are perfectly acceptable in this relaxed social context.
+Prompt given: "${prompt}"
+Transcript: "${transcript}"
+Score: ${finalScore}/100`;
+
+        const feedbackResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'gpt-3.5-turbo',
+            messages: [
+              { role: 'system', content: 'You are a constructive yet brutally honest judge for speaking competitions.' },
+              { role: 'user', content: feedbackPrompt }
+            ],
+            max_tokens: 150,
+            temperature: 0.7
+          })
+        });
+        
+        if (!feedbackResponse.ok) {
+          throw new Error('Feedback generation failed');
+        }
+        
+        const feedbackData = await feedbackResponse.json();
+        const feedback = feedbackData.choices[0].message.content.trim();
+        
+        return { score: finalScore, feedback: feedback };
+      } catch (error) {
+        return { score: 50, feedback: '' };
+      }
+    }
+
+    // event listeners
+    window.clickLock=false;
+    document.getElementById('nextTeamBtn').addEventListener('click', async function() {
+      if (clickLock) return;
+      if (currentTeamIndex < gameData.teams - 1) {
+        // move to next team
+        currentTeamIndex++;
+        currentTeamTotalTime = gameData.timePerTeam;
+        document.getElementById('nextTeamBtn').disabled = true;
+        updateDisplay();
+        startWarning();
+      } else {
+        // all teams done, wait for audio processing if needed
+        clickLock=true;
+        const maxWaitTime = 30000; // 30 seconds max wait
+        const startTime = Date.now();
+        
+        while (isProcessingAudio && (Date.now() - startTime) < maxWaitTime) {
+          await new Promise(resolve => setTimeout(resolve, 100)); // wait 100ms
+        }
+        
+        // save scores and go to results
+        if (gameData.gameMode === 'sharktank') {
+          localStorage.setItem('teamScoresSharktank', JSON.stringify(teamScoresSharktank));
+          localStorage.setItem('sharktankMode', 'true');
+        } else {
+          localStorage.setItem('teamScores', JSON.stringify(teamScores));
+          localStorage.setItem('sharktankMode', 'false');
+        }
+        clickLock=false;
+        // navigate to results page
+        window.location.href = 'results.html';
+      }
+    });
+
+    document.getElementById('backBtn').addEventListener('click', function() {
+      if (confirm('Are you sure you want to go back? This will end the current game.')) {
+        window.location.href = 'home.html';
+      }
+    });
+  </script>
+</body>
+</html>
