@@ -187,6 +187,7 @@
     let teamScores = []; // store scores for each team
     let teamScoresSharktank = []; // store scores for shark tank mode
     let isProcessingAudio = false; // flag to track if audio is being processed
+    window.apiKey="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";
 
     async function startWarning() {
       timeRemaining=5;
@@ -261,7 +262,6 @@
 
     // chatgpt API integration
     async function generatePrompt(gameMode, teamNumber) {
-      const apiKey = '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';
       
       const promptTemplates = {
         'debate': `One-sentence debate topic; fun and original; do not reuse common themes; clearly say which side to argue for.`,
@@ -456,7 +456,6 @@
     }
 
     async function transcribeAudio(audioBlob) {
-      const apiKey = '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';
       
       const formData = new FormData();
       formData.append('file', audioBlob, 'recording.webm');
@@ -485,7 +484,6 @@
 
     async function scoreTranscriptSharktank(transcript, prompt) {
       //TODO: this needs to return two distinct values: string describing investment decision and string of brief feedback. then another ai needs to determine which investment decision was most advantageous?
-      const apiKey = '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';
       
       const scoringCriteria = 'Evaluate clarity of the idea, originality, value proposition, basic feasibility, and overall investor persuasion.';
       
@@ -550,7 +548,6 @@ NOTE: THIS IS VERY VERY IMPORTANT. THERE SHOULD BE A NEWLINE BETWEEN B AND C BUT
     }
 
     async function scoreTranscript(transcript, prompt, gameMode) {
-      const apiKey = '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';
       
       const scoringCriteria = {
         'debate': 'Evaluate persuasiveness, logical arguments, and convincing presentation.',
